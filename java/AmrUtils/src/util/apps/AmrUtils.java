@@ -102,17 +102,43 @@ public class AmrUtils {
     }
     
     private void anonymizeFile(String path, boolean isText, boolean strippedAmr, GigawordWrapper anonymizer) {        
-        try (PrintWriter anonymizedWriter = new PrintWriter(new FileOutputStream(path + ".anonymized"));
-             PrintWriter alignmentsWriter = new PrintWriter(new FileOutputStream(path + ".alignments"));
-             ) {
-            Files.lines(Paths.get(path)).forEach(line -> {
-                String[] anonAligns = (isText ? anonymizeSingleText(line, anonymizer) : anonymizeSingleAmr(line, strippedAmr)).split("#");
-                anonymizedWriter.println(anonAligns[0]);
-                alignmentsWriter.println(anonAligns.length == 1 ? "" : anonAligns[1]);
-            });
-        } catch (IOException ex) {
+        try{
 
-        }           
+        PrintWriter anonymizedWriter = new PrintWriter(new FileOutputStream(path + ".anonymized"));
+        PrintWriter alignmentsWriter = new PrintWriter(new FileOutputStream(path + ".alignments"));
+
+        Files.lines(Paths.get(path)).forEach(line -> {
+            try {
+                String[] anonAligns = (isText ? anonymizeSingleText(line, anonymizer) : anonymizeSingleAmr(line, strippedAmr)).split("#");
+                try{
+                    if (anonAligns[0].length()==0)
+                        anonymizedWriter.println("<blankkkkkkkkkk>");
+                    else
+                        anonymizedWriter.println(anonAligns[0]);
+                } catch (Exception ex) {
+                    anonymizedWriter.println("<blankkkkkkkkkk>");
+                }
+                try{
+                    alignmentsWriter.println(anonAligns.length == 1 ? "" : anonAligns[1]);
+                } catch (Exception ex) {
+                    alignmentsWriter.println();
+                }
+            } catch (Exception ex) {
+                anonymizedWriter.println("<blankkkkkkkkkk>");
+                alignmentsWriter.println();
+            }
+
+            /* This try-catch is added by Ji Xin
+            if something goes wrong, simply output an empty line
+            */
+        });
+
+        anonymizedWriter.close();
+        alignmentsWriter.close();
+        /* These two .close() are added by Ji Xin
+        sometimes get into error if not closed properly
+        */
+        } catch (IOException ex){}
     }
         
     private String anonymizeSingleAmr(String input, boolean strippedAmr) {
@@ -155,11 +181,22 @@ public class AmrUtils {
     }
         
     private void deAnonymizeFile(String path, boolean isText) {
-        try (PrintWriter deAnonymizedWriter = new PrintWriter(new FileOutputStream(path + ".pred"))) {
+        try{
+
+            PrintWriter deAnonymizedWriter = new PrintWriter(new FileOutputStream(path + ".pred"));
+        
             zip(Files.lines(Paths.get(path + ".pred.anonymized")),
-                Files.lines(Paths.get(path + ".alignments")), (a, b) -> a + "#" + b).forEach(l -> deAnonymizedWriter.println(isText ? deAnonymizeSingle(l, true) : expandStrippedToFull(deAnonymizeSingle(l, false)).split("#")[0] ));
-        } catch(IOException ex) {
+                Files.lines(Paths.get(path + ".alignments")), (a, b) -> a + "#" + b).forEach(l -> {
+                try{
+                    deAnonymizedWriter.println(isText ? deAnonymizeSingle(l, true) : expandStrippedToFull(deAnonymizeSingle(l, false)).split("#")[0] );
+                } catch (Exception ex){
+                    deAnonymizedWriter.println("FAILED_TO_PARSE_XJ");
+                }
+            });
             
+            deAnonymizedWriter.close();
+
+        } catch(IOException ex) {
         }
     }     
     
